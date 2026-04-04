@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ModifiersManager() {
@@ -10,6 +10,16 @@ export function ModifiersManager() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const supabase = createSupabaseBrowserClient();
+
+  // Состояния для новой формы
+  const [isAdding, setIsAdding] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newMod, setNewMod] = useState({
+    name_ua: "",
+    name_en: "",
+    extra_price_uah: 0,
+    modifier_type: "topping",
+  });
 
   useEffect(() => {
     async function fetchModifiers() {
@@ -45,19 +55,128 @@ export function ModifiersManager() {
     setSavingId(null);
   };
 
+  // Функция добавления нового топинга в базу
+  const handleAddNew = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const { data, error } = await supabase
+      .from("modifiers")
+      .insert([
+        {
+          name_ua: newMod.name_ua,
+          name_en: newMod.name_en,
+          extra_price_uah: Number(newMod.extra_price_uah),
+          modifier_type: newMod.modifier_type,
+          is_available: true, // По умолчанию сразу доступен
+        },
+      ])
+      .select()
+      .single();
+
+    if (data && !error) {
+      // Добавляем в локальный список и сортируем, чтобы было красиво
+      setModifiers((prev) =>
+        [...prev, data].sort((a, b) => a.name_ua.localeCompare(b.name_ua))
+      );
+      setIsAdding(false); // Закрываем форму
+      setNewMod({ name_ua: "", name_en: "", extra_price_uah: 0, modifier_type: "topping" }); // Очищаем
+    } else {
+      alert("Помилка при збереженні. Перевір консоль.");
+      console.error(error);
+    }
+    setIsSubmitting(false);
+  };
+
   if (loading) {
     return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-[#4A7344]" /></div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
+      {/* ШАПКА И КНОПКА ДОБАВЛЕНИЯ */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">Управління додатками</h2>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-          {modifiers.length} позицій
-        </p>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">Управління додатками</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+            {modifiers.length} позицій
+          </p>
+        </div>
+        
+        <button
+          onClick={() => setIsAdding(!isAdding)}
+          className="flex items-center gap-2 bg-[#4A7344] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-[#3d5f37] transition-all active:scale-95"
+        >
+          {isAdding ? <X size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
+          {isAdding ? "Скасувати" : "Додати нову"}
+        </button>
       </div>
 
+      {/* ФОРМА СОЗДАНИЯ (Показывается только если нажали "Додати") */}
+      {isAdding && (
+        <form onSubmit={handleAddNew} className="bg-white rounded-2xl shadow-sm border-2 border-[#4A7344]/20 p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Назва (UA)</label>
+              <input
+                required
+                type="text"
+                placeholder="напр. Тапіока"
+                value={newMod.name_ua}
+                onChange={(e) => setNewMod({ ...newMod, name_ua: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Назва (EN)</label>
+              <input
+                required
+                type="text"
+                placeholder="напр. Tapioca"
+                value={newMod.name_en}
+                onChange={(e) => setNewMod({ ...newMod, name_en: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ціна (₴)</label>
+              <input
+                required
+                type="number"
+                min="0"
+                value={newMod.extra_price_uah}
+                onChange={(e) => setNewMod({ ...newMod, extra_price_uah: Number(e.target.value) })}
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Тип</label>
+              <select
+                value={newMod.modifier_type}
+                onChange={(e) => setNewMod({ ...newMod, modifier_type: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none bg-white"
+              >
+                <option value="topping">Топінг (Topping)</option>
+                <option value="milk">Молоко (Milk)</option>
+                <option value="syrup">Сироп (Syrup)</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-[#4A7344] text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 mt-2"
+          >
+            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : "Зберегти в базу"}
+          </button>
+        </form>
+      )}
+
+      {/* СПИСОК СУЩЕСТВУЮЩИХ ДОБАВОК */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="grid grid-cols-1 divide-y divide-gray-100">
           {modifiers.map((mod) => (

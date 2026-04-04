@@ -11,7 +11,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { ProductRow } from "@/lib/types/catalog";
 import { cn } from "@/lib/utils";
@@ -67,12 +66,16 @@ export function OrderBuilderDrawer() {
 
   return (
     <Drawer open={builderOpen} onOpenChange={(o) => { if (!o) closeBuilder(); }} direction="bottom">
-      <DrawerContent className="mx-auto max-h-[85vh] w-full max-w-md border-[#4A7344]/20 bg-[#fffef5]">
-        <DrawerHeader className="text-left">
+      {/* Додано flex flex-col, щоб правильно розподіляти місце всередині шторки */}
+      <DrawerContent className="mx-auto flex flex-col max-h-[85vh] w-full max-w-md border-[#4A7344]/20 bg-[#fffef5]">
+        
+        {/* shrink-0 гарантує, що шапка не буде стискатися */}
+        <DrawerHeader className="shrink-0 text-left">
           <DrawerTitle className="text-lg font-bold text-[#2D2D2D]">{name || "—"}</DrawerTitle>
         </DrawerHeader>
 
-        <ScrollArea className="max-h-[50vh] px-4">
+        {/* Куленепробивний скрол для мобілок. Займає весь вільний простір (flex-1) */}
+        <div className="flex-1 overflow-y-auto px-4 min-h-0">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-5 pb-4">
             
             <section>
@@ -144,14 +147,15 @@ export function OrderBuilderDrawer() {
             </section>
             
           </motion.div>
-        </ScrollArea>
+        </div>
 
-        <DrawerFooter className="border-t border-[#4A7344]/15 bg-[#fffef5]">
-          <div className="flex items-center justify-between text-sm text-[#2D2D2D]">
+        {/* Футер жорстко зафіксований внизу (shrink-0) + додано pb-8 для безпечної зони iPhone */}
+        <DrawerFooter className="shrink-0 border-t border-[#4A7344]/15 bg-[#fffef5] pb-8 pt-4">
+          <div className="flex items-center justify-between text-sm text-[#2D2D2D] mb-3">
             <span>{t.builderTotal}</span>
             <span className="font-bold">{total} ₴</span>
           </div>
-          <Button type="button" className="h-11 w-full rounded-xl bg-[#4A7344] text-base font-semibold text-white" onClick={() => addToOrder()} disabled={!product}>
+          <Button type="button" className="h-12 w-full rounded-xl bg-[#4A7344] text-base font-semibold text-white shadow-lg active:scale-95 transition-transform" onClick={() => addToOrder()} disabled={!product}>
             {t.addToOrder}
           </Button>
         </DrawerFooter>

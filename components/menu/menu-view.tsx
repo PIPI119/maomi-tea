@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, TouchEvent } from "react";
 import { useLocale } from "@/components/providers/locale-provider";
 import { ProductCard } from "@/components/menu/product-card";
 import { cn } from "@/lib/utils";
@@ -23,8 +23,8 @@ export function MenuView() {
       
       const [catRes, prodRes, modRes] = await Promise.all([
         supabase.from("categories").select("*").order("order_index", { ascending: true }),
-        supabase.from("products").select("*"), // Убрали фильтр, чтобы видеть серые
-        supabase.from("modifiers").select("*") // Загружаем топинги
+        supabase.from("products").select("*"), 
+        supabase.from("modifiers").select("*") 
       ]);
 
       hydrate({
@@ -50,6 +50,39 @@ export function MenuView() {
     [products, effectiveCategory],
   );
 
+  // === ЛОГИКА СВАЙПОВ ===
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const swipeThreshold = 50; 
+    
+    const currentIndex = sortedCategories.findIndex(c => c.id === effectiveCategory);
+
+    // Свайп влево
+    if (distance > swipeThreshold && currentIndex < sortedCategories.length - 1) {
+      setActiveCategory(sortedCategories[currentIndex + 1].id);
+    } 
+    // Свайп вправо
+    else if (distance < -swipeThreshold && currentIndex > 0) {
+      setActiveCategory(sortedCategories[currentIndex - 1].id);
+    }
+
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   if (!hydrated) {
     return (
       <div className="space-y-4">
@@ -74,7 +107,7 @@ export function MenuView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-32">
       <div>
         <h1 className="text-xl font-bold text-[#2D2D2D]">{t?.menuViewTitle || "Меню"}</h1>
         <p className="text-sm text-[#2D2D2D]/70">{t?.menuViewHint || "Обери напій"}</p>
@@ -102,17 +135,25 @@ export function MenuView() {
         })}
       </div>
 
-      <motion.div
-        key={effectiveCategory}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        className="flex flex-col gap-3"
+      {/* Обертка для считывания свайпов растянута вниз (min-h-[75vh]) */}
+      <div 
+        className="min-h-[75vh] w-full"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        {filtered.map((p, i) => (
-          <ProductCard key={p.id} product={p} index={i} />
-        ))}
-      </motion.div>
+        <motion.div
+          key={effectiveCategory}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="flex flex-col gap-3"
+        >
+          {filtered.map((p, i) => (
+            <ProductCard key={p.id} product={p} index={i} />
+          ))}
+        </motion.div>
+      </div>
     </div>
   );
 }

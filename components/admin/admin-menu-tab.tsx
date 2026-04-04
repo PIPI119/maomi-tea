@@ -21,6 +21,10 @@ import { publicUrlToStoragePath } from "@/lib/supabase/storage-path";
 import type { CategoryRow, ProductRow } from "@/lib/types/catalog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
+// === ІМПОРТУЄМО НАШІ НОВІ КОМПОНЕНТИ ===
+import { CategoriesManager } from "@/components/admin/categories-manager";
+import { ModifiersManager } from "@/components/admin/modifiers-manager";
+
 type ProductJoined = ProductRow & {
   categories: { name_ua: string; name_en: string } | null;
 };
@@ -123,6 +127,7 @@ export function AdminMenuTab() {
     setLoading(false); 
   }
 }, []);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (!banner || banner.tone !== "success") return;
@@ -440,6 +445,16 @@ export function AdminMenuTab() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* === НОВІ РОЗДІЛИ АДМІНКИ (КАТЕГОРІЇ ТА ТОПІНГИ) === */}
+      
+      <section className="px-4 mt-6">
+        <CategoriesManager />
+      </section>
+
+      <section className="px-4 mt-6">
+        <ModifiersManager />
       </section>
 
       {/* МЕНЮ (ТВОИ ТОВАРЫ) */}
