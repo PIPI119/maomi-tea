@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { MapPin, ExternalLink, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MapPin, ExternalLink, Loader2, Navigation } from "lucide-react";
+import { useLocale } from "@/components/providers/locale-provider";
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState<{ loc1: string; loc2: string } | null>(null);
+  const { locale } = useLocale();
+  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -16,18 +17,15 @@ export default function LocationsPage() {
       
       try {
         const { data, error } = await supabase
-          .from("app_settings")
-          .select("location_1_url, location_2_url")
-          .maybeSingle();
+          .from("locations")
+          .select("*")
+          .order("order_index", { ascending: true });
 
         if (error) {
           console.error("Помилка Supabase:", error.message);
           setDbError(error.message);
         } else if (data) {
-          setLocations({
-            loc1: data.location_1_url || "",
-            loc2: data.location_2_url || ""
-          });
+          setLocations(data);
         }
       } catch (err) {
         console.error("Критична помилка:", err);
@@ -38,6 +36,22 @@ export default function LocationsPage() {
     }
     fetchLocations();
   }, []);
+
+  // ФУНКЦІЯ ШВИДКОГО ВІДКРИТТЯ
+  const handleMapClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    e.preventDefault();
+    
+    // Перевіряємо, чи це мобільний пристрій (Android/iOS)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Спроба примусово викликати універсальний лінк (зазвичай працює швидше)
+      window.location.href = url;
+    } else {
+      // Для комп'ютера відкриваємо в новій вкладці
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
 
   if (loading) {
     return (
@@ -50,65 +64,57 @@ export default function LocationsPage() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="px-2">
-        <h1 className="text-2xl font-black text-[#2D2D2D]">Наші локації</h1>
-        <p className="text-sm text-gray-400 font-bold">Заходь на бабл-ті! 🐾</p>
+        <h1 className="text-2xl font-black text-[#2D2D2D]">
+          {locale === "ua" ? "Наші локації" : "Our Locations"}
+        </h1>
+        <p className="text-sm text-gray-400 font-bold">
+          {locale === "ua" ? "Заходь на бабл-ті! 🐾" : "Come for bubble tea! 🐾"}
+        </p>
       </div>
 
-      {/* Если база выдала ошибку, мы её увидим */}
       {dbError && (
-        <div className="p-4 bg-red-50 text-red-500 rounded-2xl text-xs font-bold border border-red-100">
-          Помилка бази: {dbError}. <br/>
-          Перевір, чи ти створив колонки в таблиці app_settings!
+        <div className="p-4 bg-red-50 text-red-500 rounded-2xl text-xs font-bold border border-red-100 mx-2">
+          Помилка бази: {dbError}
         </div>
       )}
 
-      <div className="grid gap-4">
-        {/* КАРТОЧКА ПЕРВОЙ ЛОКАЦИИ */}
-        {locations?.loc1 ? (
-          <div className="group bg-white/60 backdrop-blur-md rounded-[2.5rem] p-6 shadow-sm border border-white/20 transition-all active:scale-[0.98]">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-[#4A7344]/10 p-4 rounded-3xl text-[#4A7344]">
-                <MapPin size={28} />
+      <div className="grid gap-4 px-2">
+        {locations.map((loc) => (
+          <a
+            key={loc.id}
+            href={loc.map_url}
+            onClick={(e) => handleMapClick(e, loc.map_url)}
+            className="group block bg-white/60 backdrop-blur-md rounded-[2.5rem] p-5 shadow-sm border border-white/20 transition-all active:scale-95 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between gap-4">
+              
+              <div className="flex items-center gap-4">
+                <div className="bg-[#4A7344]/10 p-4 rounded-3xl text-[#4A7344] shrink-0">
+                  <MapPin size={28} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-gray-800 leading-tight">
+                    {locale === "ua" ? loc.name_ua : loc.name_en}
+                  </h3>
+                  <p className="text-[10px] text-[#4A7344] font-black uppercase tracking-widest mt-1 flex items-center gap-1">
+                    <Navigation size={10} /> Google Maps
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-lg text-gray-800">Maomi Point #1</h3>
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Головна точка</p>
+              
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#4A7344] text-white shadow-lg shadow-[#4A7344]/20 group-active:bg-[#3d5f37] transition-colors">
+                <ExternalLink size={20} />
               </div>
+              
             </div>
-            
-            <Button asChild className="w-full h-14 rounded-2xl bg-[#4A7344] text-white font-black text-base shadow-lg shadow-[#4A7344]/20">
-              <a href={locations.loc1} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                Відкрити Google Maps <ExternalLink size={18} />
-              </a>
-            </Button>
-          </div>
-        ) : null}
+          </a>
+        ))}
 
-        {/* КАРТОЧКА ВТОРОЙ ЛОКАЦИИ */}
-        {locations?.loc2 ? (
-          <div className="group bg-white/60 backdrop-blur-md rounded-[2.5rem] p-6 shadow-sm border border-white/20 transition-all active:scale-[0.98]">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-[#4A7344]/10 p-4 rounded-3xl text-[#4A7344]">
-                <MapPin size={28} />
-              </div>
-              <div>
-                <h3 className="font-black text-lg text-gray-800">Maomi Point #2</h3>
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Додаткова локація</p>
-              </div>
-            </div>
-            
-            <Button asChild className="w-full h-14 rounded-2xl bg-[#4A7344] text-white font-black text-base shadow-lg shadow-[#4A7344]/20">
-              <a href={locations.loc2} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                Відкрити Google Maps <ExternalLink size={18} />
-              </a>
-            </Button>
-          </div>
-        ) : null}
-
-        {/* Если локаций нет, но и ошибок нет */}
-        {!dbError && !locations?.loc1 && !locations?.loc2 && (
-          <div className="p-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100 mx-2">
-            <p className="text-gray-400 font-bold text-sm">Локації скоро з&apos;являться... 🐾</p>
+        {!dbError && locations.length === 0 && (
+          <div className="p-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
+            <p className="text-gray-400 font-bold text-sm">
+              {locale === "ua" ? "Локації скоро з'являться... 🐾" : "Locations coming soon... 🐾"}
+            </p>
           </div>
         )}
       </div>

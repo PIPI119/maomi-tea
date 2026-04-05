@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Loader2, Check, X, Plus } from "lucide-react";
+import { Loader2, Check, X, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ModifiersManager() {
   const [modifiers, setModifiers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const supabase = createSupabaseBrowserClient();
 
-  // Состояния для новой формы
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMod, setNewMod] = useState({
@@ -55,7 +55,21 @@ export function ModifiersManager() {
     setSavingId(null);
   };
 
-  // Функция добавления нового топинга в базу
+  const handleDelete = async (id: string, nameUa: string) => {
+    if (!window.confirm(`Ти впевнений, що хочеш назавжди видалити "${nameUa}"?`)) return;
+    
+    setDeletingId(id);
+    const { error } = await supabase.from("modifiers").delete().eq("id", id);
+    
+    if (!error) {
+      setModifiers((prev) => prev.filter((m) => m.id !== id));
+    } else {
+      alert("Не вдалося видалити топінг. Можливо, він прив'язаний до замовлень.");
+      console.error(error);
+    }
+    setDeletingId(null);
+  };
+
   const handleAddNew = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -68,19 +82,18 @@ export function ModifiersManager() {
           name_en: newMod.name_en,
           extra_price_uah: Number(newMod.extra_price_uah),
           modifier_type: newMod.modifier_type,
-          is_available: true, // По умолчанию сразу доступен
+          is_available: true,
         },
       ])
       .select()
       .single();
 
     if (data && !error) {
-      // Добавляем в локальный список и сортируем, чтобы было красиво
       setModifiers((prev) =>
         [...prev, data].sort((a, b) => a.name_ua.localeCompare(b.name_ua))
       );
-      setIsAdding(false); // Закрываем форму
-      setNewMod({ name_ua: "", name_en: "", extra_price_uah: 0, modifier_type: "topping" }); // Очищаем
+      setIsAdding(false);
+      setNewMod({ name_ua: "", name_en: "", extra_price_uah: 0, modifier_type: "topping" });
     } else {
       alert("Помилка при збереженні. Перевір консоль.");
       console.error(error);
@@ -94,7 +107,6 @@ export function ModifiersManager() {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ШАПКА И КНОПКА ДОБАВЛЕНИЯ */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Управління додатками</h2>
@@ -112,7 +124,6 @@ export function ModifiersManager() {
         </button>
       </div>
 
-      {/* ФОРМА СОЗДАНИЯ (Показывается только если нажали "Додати") */}
       {isAdding && (
         <form onSubmit={handleAddNew} className="bg-white rounded-2xl shadow-sm border-2 border-[#4A7344]/20 p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -160,6 +171,7 @@ export function ModifiersManager() {
                 className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none bg-white"
               >
                 <option value="topping">Топінг (Topping)</option>
+                <option value="extra">Додаток (Extra)</option>
                 <option value="milk">Молоко (Milk)</option>
                 <option value="syrup">Сироп (Syrup)</option>
               </select>
@@ -176,7 +188,6 @@ export function ModifiersManager() {
         </form>
       )}
 
-      {/* СПИСОК СУЩЕСТВУЮЩИХ ДОБАВОК */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="grid grid-cols-1 divide-y divide-gray-100">
           {modifiers.map((mod) => (
@@ -200,25 +211,35 @@ export function ModifiersManager() {
                 </div>
               </div>
 
-              <button
-                onClick={() => toggleAvailability(mod.id, mod.is_available)}
-                disabled={savingId === mod.id}
-                className={cn(
-                  "relative flex items-center justify-center w-12 h-8 rounded-full transition-all border-2",
-                  savingId === mod.id && "opacity-50 cursor-wait",
-                  mod.is_available 
-                    ? "bg-[#4A7344]/10 border-[#4A7344] text-[#4A7344] hover:bg-[#4A7344]/20" 
-                    : "bg-red-50 border-red-200 text-red-500 hover:bg-red-100"
-                )}
-              >
-                {savingId === mod.id ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : mod.is_available ? (
-                  <Check size={16} strokeWidth={3} />
-                ) : (
-                  <X size={16} strokeWidth={3} />
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleAvailability(mod.id, mod.is_available)}
+                  disabled={savingId === mod.id}
+                  className={cn(
+                    "relative flex items-center justify-center w-12 h-8 rounded-full transition-all border-2",
+                    savingId === mod.id && "opacity-50 cursor-wait",
+                    mod.is_available 
+                      ? "bg-[#4A7344]/10 border-[#4A7344] text-[#4A7344] hover:bg-[#4A7344]/20" 
+                      : "bg-red-50 border-red-200 text-red-500 hover:bg-red-100"
+                  )}
+                >
+                  {savingId === mod.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : mod.is_available ? (
+                    <Check size={16} strokeWidth={3} />
+                  ) : (
+                    <X size={16} strokeWidth={3} />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleDelete(mod.id, mod.name_ua)}
+                  disabled={deletingId === mod.id}
+                  className="flex items-center justify-center w-8 h-8 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  {deletingId === mod.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
+                </button>
+              </div>
 
             </div>
           ))}

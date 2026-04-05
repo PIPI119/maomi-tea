@@ -21,9 +21,10 @@ import { publicUrlToStoragePath } from "@/lib/supabase/storage-path";
 import type { CategoryRow, ProductRow } from "@/lib/types/catalog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-// === ІМПОРТУЄМО НАШІ НОВІ КОМПОНЕНТИ ===
+// === ІМПОРТУЄМО НАШІ КОМПОНЕНТИ ===
 import { CategoriesManager } from "@/components/admin/categories-manager";
 import { ModifiersManager } from "@/components/admin/modifiers-manager";
+import { LocationsManager } from "@/components/admin/locations-manager"; // НОВИЙ ІМПОРТ
 
 type ProductJoined = ProductRow & {
   categories: { name_ua: string; name_en: string } | null;
@@ -53,12 +54,9 @@ export function AdminMenuTab() {
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   
-  // Котики и Локации
+  // Котики 
   const [cats, setCats] = useState<any[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-  const [loc1, setLoc1] = useState("");
-  const [loc2, setLoc2] = useState("");
-  const [locBusy, setLocBusy] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -98,7 +96,6 @@ export function AdminMenuTab() {
   setLoading(true);
   
   try {
-    // Грузим товары (это самое важное!)
     const { data: pData, error: pErr } = await supabase
       .from("products")
       .select("*, categories(name_ua, name_en)")
@@ -107,15 +104,12 @@ export function AdminMenuTab() {
     if (pErr) console.error("Ошибка в товарах:", pErr);
     if (pData) setProducts(pData.map(normalizeAdminProduct));
 
-    // Остальное грузим "по желанию" — если упадет, меню не пропадет
     const { data: cData } = await supabase.from("categories").select("*").order("order_index", { ascending: true });
     if (cData) setCategories(cData);
 
     const { data: aData } = await supabase.from("app_settings").select("*").limit(1).maybeSingle();
     if (aData) {
       setLogoUrl(aData.logo_url);
-      setLoc1(aData.location_1_url || "");
-      setLoc2(aData.location_2_url || "");
     }
 
     const { data: dData } = await supabase.from("decorations").select("*");
@@ -146,25 +140,6 @@ export function AdminMenuTab() {
     await supabase.from("decorations").update({ pos_x: x, pos_y: y }).eq("id", selectedCatId);
     setCats(prev => prev.map(c => c.id === selectedCatId ? { ...c, pos_x: x, pos_y: y } : c));
   };
-
-  // --- СОХРАНЕНИЕ ЛОКАЦИЙ ---
-  async function onSaveLocations() {
-    setLocBusy(true);
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const { data: existing } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
-      const payload = { location_1_url: loc1, location_2_url: loc2 };
-      
-      if (existing?.id) {
-        await supabase.from("app_settings").update(payload).eq("id", existing.id);
-      } else {
-        await supabase.from("app_settings").insert(payload);
-      }
-      setBanner({ tone: "success", text: "Локації збережено!" });
-    } catch (err) {
-      setBanner({ tone: "error", text: "Помилка збереження" });
-    } finally { setLocBusy(false); }
-  }
 
   async function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.files?.[0];
@@ -348,7 +323,7 @@ export function AdminMenuTab() {
         </div>
       )}
 
-      {/* ОФОРМЛЕННЯ (ЛОГО, КАРТА КОТИКІВ, КАРТА GOOGLE) */}
+      {/* ОФОРМЛЕННЯ (ЛОГО, КАРТА КОТИКІВ) */}
       <section className="p-4 space-y-4">
         <div className="flex flex-col items-center rounded-[2.5rem] border border-[#4A7344]/10 bg-white p-8 shadow-sm">
           <h2 className="mb-6 font-black text-gray-800 uppercase tracking-widest text-xs">Бренд та Оформлення</h2>
@@ -412,43 +387,15 @@ export function AdminMenuTab() {
             </div>
             <p className="text-center text-[9px] text-gray-400 mt-4 font-bold italic">Виберіть котика, а потім клікніть на мапу вище 🐾</p>
           </div>
-
-          {/* ЛОКАЦИИ GOOGLE MAPS */}
-          <div className="w-full border-t border-gray-50 pt-8">
-            <p className="text-center text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Google Мітки (Локації)</p>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <Label className="text-[9px] font-black text-gray-400 uppercase ml-2">Maomi Point #1</Label>
-                <Input 
-                  value={loc1} 
-                  onChange={(e) => setLoc1(e.target.value)} 
-                  placeholder="Посилання на Google Maps..." 
-                  className="bg-gray-50 rounded-2xl border-none text-xs h-11"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[9px] font-black text-gray-400 uppercase ml-2">Maomi Point #2</Label>
-                <Input 
-                  value={loc2} 
-                  onChange={(e) => setLoc2(e.target.value)} 
-                  placeholder="Посилання на Google Maps..." 
-                  className="bg-gray-50 rounded-2xl border-none text-xs h-11"
-                />
-              </div>
-              <Button 
-                onClick={onSaveLocations} 
-                className="w-full h-12 rounded-2xl bg-[#4A7344] text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#4A7344]/20 mt-2"
-                disabled={locBusy}
-              >
-                {locBusy ? <Loader2 className="animate-spin size-4" /> : "Зберегти локації"}
-              </Button>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* === НОВІ РОЗДІЛИ АДМІНКИ (КАТЕГОРІЇ ТА ТОПІНГИ) === */}
+      {/* === НОВІ РОЗДІЛИ АДМІНКИ (ЛОКАЦІЇ, КАТЕГОРІЇ ТА ТОПІНГИ) === */}
       
+      <section className="px-4 mt-6">
+        <LocationsManager />
+      </section>
+
       <section className="px-4 mt-6">
         <CategoriesManager />
       </section>

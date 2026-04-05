@@ -10,11 +10,10 @@ export function CategoriesManager() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const supabase = createSupabaseBrowserClient();
 
-  // Состояния для формы
+  // Состояния для формы (видалили id звідси)
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newCat, setNewCat] = useState({
-    id: "", // Техническое имя (например: fruit_tea)
     name_ua: "",
     name_en: "",
     order_index: 0,
@@ -42,14 +41,10 @@ export function CategoriesManager() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Убираем пробелы и делаем маленькие буквы для ID (например "Fruit Tea" -> "fruit_tea")
-    const safeId = newCat.id.trim().toLowerCase().replace(/\s+/g, '_');
-
     const { data, error } = await supabase
       .from("categories")
       .insert([
         {
-          id: safeId,
           name_ua: newCat.name_ua,
           name_en: newCat.name_en,
           order_index: Number(newCat.order_index),
@@ -61,9 +56,9 @@ export function CategoriesManager() {
     if (data && !error) {
       setCategories((prev) => [...prev, data].sort((a, b) => a.order_index - b.order_index));
       setIsAdding(false);
-      setNewCat({ id: "", name_ua: "", name_en: "", order_index: 0 });
+      setNewCat({ name_ua: "", name_en: "", order_index: 0 }); // Очищення без id
     } else {
-      alert("Помилка! Можливо, категорія з таким ID вже існує.");
+      alert("Помилка при створенні категорії!");
       console.error(error);
     }
     setIsSubmitting(false);
@@ -126,13 +121,7 @@ export function CategoriesManager() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                Системний ID (англ. без пробілів)
-              </label>
-              <input required type="text" placeholder="напр. fruit_tea" value={newCat.id} onChange={(e) => setNewCat({ ...newCat, id: e.target.value })} className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-[#4A7344]/50 outline-none font-mono" />
-            </div>
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
                 Порядок сортування (1 - перша)

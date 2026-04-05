@@ -2,36 +2,40 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
   // === 1. ЗАХИСТ АДМІНКИ (BASIC AUTH) ===
-  // Перевіряємо, чи йде запит на сторінки адмінки
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    const basicAuth = request.headers.get('authorization');
+  if (pathname.startsWith('/admin')) {
+    const authHeader = request.headers.get('authorization');
+    
+    // Якщо .env не бачить пароль, використовуємо цей як запасний
+    const expectedPassword = process.env.ADMIN_PASSWORD || 'maomi1maomi2';
 
-    if (basicAuth) {
-      const authValue = basicAuth.split(' ')[1];
-      const [user, pwd] = atob(authValue).split(':');
+    if (!authHeader) {
+      return new NextResponse('Auth Required', {
+        status: 401,
+        headers: { 'WWW-Authenticate': 'Basic realm="Secure Admin"' },
+      });
+    }
 
-      // Перевіряємо логін (maomi) і пароль (з твого .env.local)
-      if (user !== 'maomi' || pwd !== process.env.ADMIN_PASSWORD) {
-        return new NextResponse('Доступ заборонено', {
+    try {
+      const auth = authHeader.split(' ')[1];
+      const decoded = atob(auth);
+      const [user, pwd] = decoded.split(':');
+
+      if (user !== 'maomi' || pwd !== expectedPassword) {
+        return new NextResponse('Unauthorized', {
           status: 401,
-          headers: {
-            'WWW-Authenticate': 'Basic realm="Secure Admin Area"',
-          },
+          headers: { 'WWW-Authenticate': 'Basic realm="Secure Admin"' },
         });
       }
-    } else {
-      // Якщо пароля немає взагалі — викидаємо вікно вводу
-      return new NextResponse('Доступ заборонено', {
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Basic realm="Secure Admin Area"',
-        },
-      });
+      // Якщо пароль вірний — код просто іде далі до секції Supabase
+    } catch (e) {
+      return new NextResponse('Auth Error', { status: 401 });
     }
   }
 
-  // === 2. ТВІЙ ОРИГІНАЛЬНИЙ КОД SUPABASE ===
+  // === 2. КОД SUPABASE (ОБОВ'ЯЗКОВО ДЛЯ ВСІХ СТОРІНОК) ===
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -59,12 +63,12 @@ export async function middleware(request: NextRequest) {
     },
   );
 
+  // Оновлюємо сесію (важливо для Supabase)
   await supabase.auth.getUser();
 
   return supabaseResponse;
 }
 
-// Залишаємо твій оригінальний matcher
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",

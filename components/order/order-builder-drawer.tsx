@@ -41,9 +41,13 @@ export function OrderBuilderDrawer() {
     closeBuilder,
     selectedProductId,
     sizeId,
+    temperature,
+    sweetness,
     toppingIds,
     extraIds,
     setSize,
+    setTemperature,
+    setSweetness,
     toggleTopping,
     toggleExtra,
     addToOrder,
@@ -51,7 +55,6 @@ export function OrderBuilderDrawer() {
 
   const product = selectedProductId ? getProduct(selectedProductId) : undefined;
 
-  // Берем все топинги, даже недоступные
   const toppings = modifiers.filter((m) => m.modifier_type?.toLowerCase().includes("topping") || m.modifier_type?.toLowerCase().includes("топінг"));
   const extras = modifiers.filter((m) => m.modifier_type?.toLowerCase().includes("extra") || m.modifier_type?.toLowerCase().includes("додаток"));
 
@@ -66,18 +69,62 @@ export function OrderBuilderDrawer() {
 
   return (
     <Drawer open={builderOpen} onOpenChange={(o) => { if (!o) closeBuilder(); }} direction="bottom">
-      {/* Додано flex flex-col, щоб правильно розподіляти місце всередині шторки */}
       <DrawerContent className="mx-auto flex flex-col max-h-[85vh] w-full max-w-md border-[#4A7344]/20 bg-[#fffef5]">
         
-        {/* shrink-0 гарантує, що шапка не буде стискатися */}
         <DrawerHeader className="shrink-0 text-left">
           <DrawerTitle className="text-lg font-bold text-[#2D2D2D]">{name || "—"}</DrawerTitle>
         </DrawerHeader>
 
-        {/* Куленепробивний скрол для мобілок. Займає весь вільний простір (flex-1) */}
         <div className="flex-1 overflow-y-auto px-4 min-h-0">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-5 pb-4">
             
+            {/* БЛОК: ТЕМПЕРАТУРА */}
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">
+                {locale === "ua" ? "Температура" : "Temperature"}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setTemperature("cold")} 
+                  className={cn("rounded-full border px-4 py-2 text-sm font-medium transition-colors", temperature === "cold" ? "border-[#4A7344] bg-[#4A7344] text-white" : "border-[#4A7344]/30 bg-white text-[#2D2D2D]")}
+                >
+                  {locale === "ua" ? "Холодний 🧊" : "Cold 🧊"}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setTemperature("warm")} 
+                  className={cn("rounded-full border px-4 py-2 text-sm font-medium transition-colors", temperature === "warm" ? "border-[#4A7344] bg-[#4A7344] text-white" : "border-[#4A7344]/30 bg-white text-[#2D2D2D]")}
+                >
+                  {locale === "ua" ? "Теплий ♨️" : "Warm ♨️"}
+                </button>
+              </div>
+            </section>
+
+            <Separator className="bg-[#4A7344]/15" />
+
+            {/* БЛОК: РІВЕНЬ СОЛОДКОСТІ */}
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">
+                {locale === "ua" ? "Рівень солодкості" : "Sweetness level"}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4].map((level) => (
+                  <button 
+                    key={level} 
+                    type="button" 
+                    onClick={() => setSweetness(level)} 
+                    className={cn("flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition-colors", sweetness === level ? "border-[#4A7344] bg-[#4A7344] text-white" : "border-[#4A7344]/30 bg-white text-[#2D2D2D]")}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <Separator className="bg-[#4A7344]/15" />
+
+            {/* БЛОК РОЗМІРУ */}
             <section>
               <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">{t.builderSize}</h3>
               <div className="flex flex-wrap gap-2">
@@ -92,8 +139,11 @@ export function OrderBuilderDrawer() {
 
             <Separator className="bg-[#4A7344]/15" />
 
+            {/* БЛОК ТОПІНГІВ */}
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">{t.builderToppings}</h3>
+              <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">
+                {locale === "ua" ? "Топінг+" : "Topping+"}
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {toppings.map((s) => {
                   const active = toppingIds.includes(s.id);
@@ -120,6 +170,7 @@ export function OrderBuilderDrawer() {
 
             <Separator className="bg-[#4A7344]/15" />
 
+            {/* БЛОК ДОДАТКІВ */}
             <section>
               <h3 className="mb-2 text-sm font-semibold text-[#4A7344]">{t.builderExtras}</h3>
               <div className="flex flex-wrap gap-2">
@@ -149,13 +200,17 @@ export function OrderBuilderDrawer() {
           </motion.div>
         </div>
 
-        {/* Футер жорстко зафіксований внизу (shrink-0) + додано pb-8 для безпечної зони iPhone */}
         <DrawerFooter className="shrink-0 border-t border-[#4A7344]/15 bg-[#fffef5] pb-8 pt-4">
           <div className="flex items-center justify-between text-sm text-[#2D2D2D] mb-3">
             <span>{t.builderTotal}</span>
             <span className="font-bold">{total} ₴</span>
           </div>
-          <Button type="button" className="h-12 w-full rounded-xl bg-[#4A7344] text-base font-semibold text-white shadow-lg active:scale-95 transition-transform" onClick={() => addToOrder()} disabled={!product}>
+          <Button 
+            type="button" 
+            className="h-12 w-full rounded-xl bg-[#4A7344] text-base font-semibold text-white shadow-lg active:scale-95 transition-transform" 
+            onClick={() => addToOrder()} 
+            disabled={!product}
+          >
             {t.addToOrder}
           </Button>
         </DrawerFooter>
